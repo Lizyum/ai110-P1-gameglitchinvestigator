@@ -1,68 +1,7 @@
 import random
 import streamlit as st
+from logic_utils import check_guess, get_range_for_difficulty, parse_guess, update_score
 
-def get_range_for_difficulty(difficulty: str):
-    if difficulty == "Easy":
-        return 1, 20
-    if difficulty == "Normal":
-        return 1, 100
-    if difficulty == "Hard":
-        return 1, 50
-    return 1, 100
-
-
-def parse_guess(raw: str):
-    if raw is None:
-        return False, None, "Enter a guess."
-
-    if raw == "":
-        return False, None, "Enter a guess."
-
-    try:
-        if "." in raw:
-            value = int(float(raw))
-        else:
-            value = int(raw)
-    except Exception:
-        return False, None, "That is not a number."
-
-    return True, value, None
-
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        if guess > secret:
-            return "Too High", "📈 Go HIGHER!"
-        else:
-            return "Too Low", "📉 Go LOWER!"
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "📈 Go HIGHER!"
-        return "Too Low", "📉 Go LOWER!"
-
-
-def update_score(current_score: int, outcome: str, attempt_number: int):
-    if outcome == "Win":
-        points = 100 - 10 * (attempt_number + 1)
-        if points < 10:
-            points = 10
-        return current_score + points
-
-    if outcome == "Too High":
-        if attempt_number % 2 == 0:
-            return current_score + 5
-        return current_score - 5
-
-    if outcome == "Too Low":
-        return current_score - 5
-
-    return current_score
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -77,9 +16,10 @@ difficulty = st.sidebar.selectbox(
     index=1,
 )
 
+# MY EDIT: Reshuffled attempt limits based on difficulty
 attempt_limit_map = {
-    "Easy": 6,
-    "Normal": 8,
+    "Easy": 8,
+    "Normal": 6,
     "Hard": 5,
 }
 attempt_limit = attempt_limit_map[difficulty]
@@ -92,11 +32,12 @@ st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 if "secret" not in st.session_state:
     st.session_state.secret = random.randint(low, high)
 
+# MY EDIT: Initializing attempts counter to 0 when game starts
 if "attempts" not in st.session_state:
-    st.session_state.attempts = 1
+    st.session_state.attempts = 0
 
 if "score" not in st.session_state:
-    st.session_state.score = 0
+    st.session_state.score = 100
 
 if "status" not in st.session_state:
     st.session_state.status = "playing"
@@ -106,17 +47,11 @@ if "history" not in st.session_state:
 
 st.subheader("Make a guess")
 
-st.info(
-    f"Guess a number between 1 and 100. "
-    f"Attempts left: {attempt_limit - st.session_state.attempts}"
-)
+# CLAUDE EDIT: created a placeholder to write to banner as soon as user submits a guess (responsive attempts counter)
+info_placeholder = st.empty()
 
-with st.expander("Developer Debug Info"):
-    st.write("Secret:", st.session_state.secret)
-    st.write("Attempts:", st.session_state.attempts)
-    st.write("Score:", st.session_state.score)
-    st.write("Difficulty:", difficulty)
-    st.write("History:", st.session_state.history)
+# MY EDIT: created a container to keep the OG position of the debug panel
+debug_container = st.container()
 
 raw_guess = st.text_input(
     "Enter your guess:",
@@ -133,7 +68,13 @@ with col3:
 
 if new_game:
     st.session_state.attempts = 0
-    st.session_state.secret = random.randint(1, 100)
+    # MY EDIT: Range updated to low, high vars -- not hardcoded to 100
+    st.session_state.secret = random.randint(low, high)
+    # MY EDIT: Reinitializing history and score variables when new_game
+    st.session_state.history = []
+    st.session_state.score = 100
+    # MY EDIT: status set to 'playing' to give user ability to guess
+    st.session_state.status = "playing"
     st.success("New game started.")
     st.rerun()
 
@@ -145,20 +86,18 @@ if st.session_state.status != "playing":
     st.stop()
 
 if submit:
-    st.session_state.attempts += 1
+    # st.session_state.attempts += 1
 
     ok, guess_int, err = parse_guess(raw_guess)
-
+    # MY EDIT: when NOT ok, don't append guess to history
     if not ok:
-        st.session_state.history.append(raw_guess)
         st.error(err)
     else:
         st.session_state.history.append(guess_int)
+        st.session_state.attempts += 1
 
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-        else:
-            secret = st.session_state.secret
+        # MY EDIT: secret is always initialized as an int
+        secret = st.session_state.secret
 
         outcome, message = check_guess(guess_int, secret)
 
@@ -170,7 +109,7 @@ if submit:
             outcome=outcome,
             attempt_number=st.session_state.attempts,
         )
-
+        
         if outcome == "Win":
             st.balloons()
             st.session_state.status = "won"
@@ -186,6 +125,25 @@ if submit:
                     f"The secret was {st.session_state.secret}. "
                     f"Score: {st.session_state.score}"
                 )
+                # st.error(f"Start a new game to try again!")
+                # st.stop()
+
+# MY EDIT: Changed hardcoded range to responsive range based on low, high vars
+# Use a placeholder so we can update it after submit increments attempts
+# CLAUDE EDIT: after user submits a guess, update banner content with attempts counter
+info_placeholder.info(
+    f"Guess a number between {low} and {high}. "
+    f"Attempts left: {attempt_limit - st.session_state.attempts}"
+)
+
+# CLAUDE EDIT: Wrote to the debug panel after user submits a guess - keeps better track of history
+with debug_container:
+    with st.expander("Developer Debug Info"):
+        st.write("Secret:", st.session_state.secret)
+        st.write("Attempts:", st.session_state.attempts)
+        st.write("Score:", st.session_state.score)
+        st.write("Difficulty:", difficulty)
+        st.write("History:", st.session_state.history)
 
 st.divider()
 st.caption("Built by an AI that claims this code is production-ready.")
