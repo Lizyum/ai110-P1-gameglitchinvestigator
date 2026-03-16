@@ -35,23 +35,34 @@ I prompted Claude to identify the initialization and assignments of st.session_s
 ## 3. Debugging and testing your fixes
 
 - How did you decide whether a bug was really fixed?
+I had the game running in an adjacent window and refreshed the browser every time I wanted to verify the correctness of any recent changes I made.
 - Describe at least one test you ran (manual or using pytest)  
   and what it showed you about your code.
+For example, when I changed the ranges of guessing values based on difficulty, I manually refreshed the page to make sure that the text on the page corresponded to the changes I made in the code.
 - Did AI help you design or understand any tests? How?
+Yes, AI helped me write the tests we ran to verify the correctness of the history bugs I fixed.
 
 ---
 
 ## 4. What did you learn about Streamlit and state?
 
 - In your own words, explain why the secret number kept changing in the original app.
+  Every time a user interacted with the app (clicking Submit, for example), Streamlit re-ran the entire script from top to bottom. Because the secret number was generated with `random.randint()` at the top level with no guard, it got a brand new value on every rerun.
+
 - How would you explain Streamlit "reruns" and session state to a friend who has never used Streamlit?
+  Streamlit is like a whiteboard that gets fully erased and redrawn every time someone clicks a button. By default, nothing is remembered between redraws. `st.session_state` functions like a sticky note that you can attach to the whiteboard — it saves values beyond the erase-and-redraw cycle, so important values like the secret number or attempt count stay put.
+
 - What change did you make that finally gave the game a stable secret number?
+  I wrapped the secret number generation in an `if "secret" not in st.session_state:` check. This means the number is only generated once — the very first time the app loads — and every subsequent rerun reads the already-stored value instead of creating a new one.
 
 ---
 
 ## 5. Looking ahead: your developer habits
 
 - What is one habit or strategy from this project that you want to reuse in future labs or projects?
+I would like to have a system of live testing where I can quickly verify whether changes I make are functional or not. 
   - This could be a testing habit, a prompting strategy, or a way you used Git.
 - What is one thing you would do differently next time you work with AI on a coding task?
+I would like to make more frequent uploads to GitHub / version control hubs in case I want to revert any AI changes.
 - In one or two sentences, describe how this project changed the way you think about AI generated code.
+It fortified my understanding of the importance of revising AI generated code before insertion. There were many occasions where I had to make small tweaks in AI generated code for it to fully function within the existing project code.
